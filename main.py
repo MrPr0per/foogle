@@ -129,27 +129,11 @@ class Foogle:
         
         return snippet
 
-        # if offset <= radius:
-        #     snippet += f.read(offset)
-        # else:
-        #     f.seek(offset - radius)
-        #     snippet += '...' + f.read(radius)
-        # 
-        # snippet += colorama.Fore.GREEN
-        # snippet += f.read(word_len)
-        # snippet += colorama.Fore.RESET
-        # 
-        # # TODO: проверка на перенос строки, конец файла
-        # snippet += f.read(radius)
-
-    # def get_line(self, text, offset, word_len) -> tuple[int, str]:
-    #     """возвращает номер строки и строку, содержащюю слово, начинающееся с offset'ого символа длины word_len"""
-    #     for i, line in 
 
 
 def main():
-    foogle = Foogle('tests/files')
-    print(foogle.search('А'))
+    foogle = Foogle('tests/files/wiki_test')
+    foogle.search('частотность')
 
 
 if __name__ == '__main__':
