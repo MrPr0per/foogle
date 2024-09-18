@@ -3,6 +3,7 @@ import re
 import typing
 
 import colorama
+
 colorama.init()
 
 
@@ -73,14 +74,13 @@ class Foogle:
 
         if show_results:
             for filepath, entries in entries_by_file.items():
-                print(filepath)
+                print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
                 for entry in entries:
                     print(self.make_snippet(filepath, entry, len(word)))
                 print()
 
         return entries_by_file
 
-    # TODO: потестить на википедийных/хабр статьях
     def make_snippet(self, filepath, entry: WordEntry, word_len, radius=40):
         with open(filepath, encoding='utf8') as f:
             text = f.read()
@@ -101,19 +101,19 @@ class Foogle:
         for i in range(entry.offset - 1, left_border - 1, -1):
             if text[i] == '\n':
                 left_border = i + 1
-                left_ellipsis=False
+                left_ellipsis = False
                 break
 
         # ищем конец этой строки
         for i in range(entry.offset + word_len, right_border):
             if text[i] == '\n':
                 right_border = i
-                right_ellipsis=False
+                right_ellipsis = False
                 break
 
         snippet = ''
         snippet += colorama.Fore.LIGHTBLACK_EX
-        snippet += str(entry.line).ljust(6, ' ')
+        snippet += str(entry.line).rjust(4, ' ') + '  '
         snippet += colorama.Fore.RESET
         if left_ellipsis: snippet += '...'
         snippet += text[left_border:entry.offset]
@@ -126,9 +126,7 @@ class Foogle:
         snippet += text[entry.offset + word_len:right_border]
         if right_ellipsis: snippet += '...'
 
-        
         return snippet
-
 
 
 def main():
