@@ -1,4 +1,5 @@
 tests/test.py
+tests/test.txt
 tests/files/wiki_test/
 
 # Byte-compiled / optimized / DLL files

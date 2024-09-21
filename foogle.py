@@ -4,13 +4,55 @@ import typing
 
 import colorama
 
+import logic_tree
+
 colorama.init()
 
 
 class WordEntry:
+    """одно вхождение слова в файл"""
+
     def __init__(self, offset: int, line: int):
         self.offset = offset
         self.line = line
+
+
+class WordEntries:
+    """все вхождения слова в файл"""
+
+    def __init__(self, entries: dict[str, list[WordEntry]] = None):
+        """
+        :param entries: {файл: [вхождения]}
+        """
+        if entries is None: entries = {}
+        self.entries = entries
+
+    @classmethod
+    def intersect(cls, entries_list: list['WordEntries']) -> 'WordEntries':
+        if len(entries_list) == 0: return WordEntries()
+
+        all_filenames = [set(entries.entries.keys()) for entries in entries_list]
+        # Начинаем с самого маленького множества, чтобы ускорить пересечение
+        common_filenames = min(all_filenames, key=len)
+        # Пересекаем его с остальными множествами
+        common_filenames = common_filenames.intersection(*all_filenames)
+
+        intersection = {}
+        for common_filename in common_filenames:
+            common_word_entries: list[WordEntry] = []
+            for entries in entries_list:
+                if common_filename not in entries.entries: continue
+                common_word_entries.extend(entries.entries[common_filename])
+                # todo: пофиксить дублирование в запросах вида "кукуруза AND кукуруза"
+            common_word_entries.sort(key=lambda entry: entry.offset)
+            intersection[common_filename] = common_word_entries
+        return WordEntries(intersection)
+
+    def __getitem__(self, filename):
+        return self.entries[filename]
+
+    def __setitem__(self, key, value):
+        self.entries[key] = value
 
 
 class FolderIndex:
@@ -63,23 +105,57 @@ class FolderIndexer:
                     yield filepath
 
 
+class ExpressionSearcher:
+    def __init__(self, folder_index: FolderIndex):
+        self.folder_index = folder_index
+
+    def search_by_or_tree(self, or_tree: logic_tree.Tree):
+        results = [self.search_by_and_tree(and_tree) for and_tree in or_tree.and_trees]
+        # todo объединяем
+        return results[0]
+
+    def search_by_and_tree(self, and_tree: logic_tree.AndTree) -> WordEntries:
+        results_list = [self.search_by_atom(atom) for atom in and_tree.atoms]
+        results = WordEntries.intersect(results_list)
+        return results
+
+    def search_by_atom(self, atom: logic_tree.Atom):
+        if isinstance(atom, logic_tree.WordAtom):
+            return WordEntries(self.folder_index[atom.value])
+        if isinstance(atom, logic_tree.NotAtom):
+            raise NotImplemented()
+        if isinstance(atom, logic_tree.TreeAtom):
+            atom: logic_tree.TreeAtom
+            return self.search_by_or_tree(atom.value)
+        raise AssertionError()
+
+
 class Foogle:
     def __init__(self, folderpath):
         folder_index = FolderIndexer().index_folder(folderpath)
         self.folder_index = folder_index
 
-    def search(self, word, show_results=True):
+    def search_expression(self, querry):
+        expr = logic_tree.LogicTreeParser(querry).parse()
+        result = ExpressionSearcher(self.folder_index).search_by_or_tree(expr)
+        self.show_results()
+        return result
+
+    def search_word(self, word, is_show_results=True):
         word = word.casefold()
         entries_by_file = self.folder_index[word]
 
-        if show_results:
-            for filepath, entries in entries_by_file.items():
-                print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
-                for entry in entries:
-                    print(self.make_snippet(filepath, entry, len(word)))
-                print()
+        if is_show_results:
+            self.show_results(entries_by_file, word)
 
         return entries_by_file
+
+    def show_results(self, entries_by_file, word):
+        for filepath, entries in entries_by_file.items():
+            print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
+            for entry in entries:
+                print(self.make_snippet(filepath, entry, len(word)))
+            print()
 
     def make_snippet(self, filepath, entry: WordEntry, word_len, radius=40):
         with open(filepath, encoding='utf8') as f:
@@ -131,7 +207,8 @@ class Foogle:
 
 def main():
     foogle = Foogle('tests/files/wiki_test')
-    foogle.search('частотность')
+    # foogle.search_expression('частотность AND но')
+    foogle.search_word('частотность')
 
 
 if __name__ == '__main__':
