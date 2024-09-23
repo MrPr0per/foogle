@@ -29,7 +29,8 @@ class WordEntries:
 
     @classmethod
     def intersect(cls, entries_list: list['WordEntries']) -> 'WordEntries':
-        if len(entries_list) == 0: return WordEntries()
+        # if len(entries_list) == 0: return WordEntries()
+        if len(entries_list) == 0: raise ValueError('перресечение пустого набора результатов')
 
         all_filenames = [set(entries.entries.keys()) for entries in entries_list]
         # Начинаем с самого маленького множества, чтобы ускорить пересечение
@@ -47,6 +48,24 @@ class WordEntries:
             common_word_entries.sort(key=lambda entry: entry.offset)
             intersection[common_filename] = common_word_entries
         return WordEntries(intersection)
+
+    @classmethod
+    def unite(cls, entries_list: list['WordEntries']) -> 'WordEntries':
+        if len(entries_list) == 0: return WordEntries()
+
+        all_filenames = [set(entries.entries.keys()) for entries in entries_list]
+        common_filenames = all_filenames[0].union(*all_filenames)
+
+        union = {}
+        for common_filename in common_filenames:
+            common_word_entries: list[WordEntry] = []
+            for entries in entries_list:
+                if common_filename not in entries.entries: continue
+                common_word_entries.extend(entries.entries[common_filename])
+                # todo: пофиксить дублирование в запросах вида "кукуруза AND кукуруза"
+            common_word_entries.sort(key=lambda entry: entry.offset)
+            union[common_filename] = common_word_entries
+        return WordEntries(union)
 
     def __getitem__(self, filename):
         return self.entries[filename]
