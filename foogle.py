@@ -1,127 +1,11 @@
-import os
 import re
-import typing
 
 import colorama
 
 import logic_tree
+from folder_index import WordEntry, SearchResult, FolderIndex, FolderIndexer
 
 colorama.init()
-
-
-class WordEntry:
-    """одно вхождение слова в файл"""
-
-    def __init__(self, offset: int, line: int):
-        self.offset = offset
-        self.line = line
-
-
-class WordEntries:
-    """все вхождения слова в файл"""
-
-    def __init__(self, entries: dict[str, list[WordEntry]] = None):
-        """
-        :param entries: {файл: [вхождения]}
-        """
-        if entries is None: entries = {}
-        self.entries = entries
-
-    @classmethod
-    def intersect(cls, entries_list: list['WordEntries']) -> 'WordEntries':
-        # if len(entries_list) == 0: return WordEntries()
-        if len(entries_list) == 0: raise ValueError('перресечение пустого набора результатов')
-
-        all_filenames = [set(entries.entries.keys()) for entries in entries_list]
-        # Начинаем с самого маленького множества, чтобы ускорить пересечение
-        common_filenames = min(all_filenames, key=len)
-        # Пересекаем его с остальными множествами
-        common_filenames = common_filenames.intersection(*all_filenames)
-
-        intersection = {}
-        for common_filename in common_filenames:
-            common_word_entries: list[WordEntry] = []
-            for entries in entries_list:
-                if common_filename not in entries.entries: continue
-                common_word_entries.extend(entries.entries[common_filename])
-                # todo: пофиксить дублирование в запросах вида "кукуруза AND кукуруза"
-            common_word_entries.sort(key=lambda entry: entry.offset)
-            intersection[common_filename] = common_word_entries
-        return WordEntries(intersection)
-
-    @classmethod
-    def unite(cls, entries_list: list['WordEntries']) -> 'WordEntries':
-        if len(entries_list) == 0: return WordEntries()
-
-        all_filenames = [set(entries.entries.keys()) for entries in entries_list]
-        common_filenames = all_filenames[0].union(*all_filenames)
-
-        union = {}
-        for common_filename in common_filenames:
-            common_word_entries: list[WordEntry] = []
-            for entries in entries_list:
-                if common_filename not in entries.entries: continue
-                common_word_entries.extend(entries.entries[common_filename])
-                # todo: пофиксить дублирование в запросах вида "кукуруза AND кукуруза"
-            common_word_entries.sort(key=lambda entry: entry.offset)
-            union[common_filename] = common_word_entries
-        return WordEntries(union)
-
-    def __getitem__(self, filename):
-        return self.entries[filename]
-
-    def __setitem__(self, key, value):
-        self.entries[key] = value
-
-
-class FolderIndex:
-    def __init__(self):
-        self.word_entires: dict[str, dict[str, list[WordEntry]]] = {}  # {слово: {файл: [вхождения]}} 
-
-    def add(self, word, filepath, entry: WordEntry):
-        if word not in self.word_entires:
-            self.word_entires[word] = {}
-        if filepath not in self.word_entires[word]:
-            self.word_entires[word][filepath] = []
-        self.word_entires[word][filepath].append(entry)
-
-    def __getitem__(self, word: str):
-        if word in self.word_entires:
-            return self.word_entires[word]
-        return {}
-
-
-class FolderIndexer:
-    def __init__(self):
-        pass
-
-    def index_folder(self, folderpath):
-        folder_index = FolderIndex()
-        for filepath in self.iter_filepaths(folderpath):
-            self.index_file(folder_index, filepath)
-        return folder_index
-
-    def index_file(self, folder_index: FolderIndex, filepath: str):
-        # todo: определять и сохранять кодировку
-        encoding = 'utf8'
-        with open(filepath, 'r', encoding=encoding) as f:
-            total_char_count = 0
-            for i, line in enumerate(f.readlines()):
-                line = line.casefold()
-                for match in re.finditer(r'\w+', line):
-                    folder_index.add(match.group(), filepath,
-                                     WordEntry(match.span()[0] + total_char_count, i + 1))
-                total_char_count += len(line)
-
-    def iter_filepaths(self, folderpath) -> typing.Generator[str, None, None]:
-        """рекурсивно проходится по всем файлам в папке и ее подпапкках"""
-        for item in os.listdir(folderpath):
-            item_path = folderpath + '/' + item
-            if not os.path.isdir(item_path):
-                yield item_path
-            else:
-                for filepath in self.iter_filepaths(item_path):
-                    yield filepath
 
 
 class ExpressionSearcher:
@@ -129,18 +13,18 @@ class ExpressionSearcher:
         self.folder_index = folder_index
 
     def search_by_or_tree(self, or_tree: logic_tree.Tree):
-        results = [self.search_by_and_tree(and_tree) for and_tree in or_tree.and_trees]
-        # todo объединяем
-        return results[0]
+        results_list = [self.search_by_and_tree(and_tree) for and_tree in or_tree.and_trees]
+        results = SearchResult.unite(results_list)
+        return results
 
-    def search_by_and_tree(self, and_tree: logic_tree.AndTree) -> WordEntries:
+    def search_by_and_tree(self, and_tree: logic_tree.AndTree) -> SearchResult:
         results_list = [self.search_by_atom(atom) for atom in and_tree.atoms]
-        results = WordEntries.intersect(results_list)
+        results = SearchResult.intersect(results_list)
         return results
 
     def search_by_atom(self, atom: logic_tree.Atom):
         if isinstance(atom, logic_tree.WordAtom):
-            return WordEntries(self.folder_index[atom.value])
+            return SearchResult(self.folder_index[atom.value])
         if isinstance(atom, logic_tree.NotAtom):
             raise NotImplemented()
         if isinstance(atom, logic_tree.TreeAtom):
@@ -157,7 +41,7 @@ class Foogle:
     def search_expression(self, querry):
         expr = logic_tree.LogicTreeParser(querry).parse()
         result = ExpressionSearcher(self.folder_index).search_by_or_tree(expr)
-        self.show_results()
+        self.show_results(result)
         return result
 
     def search_word(self, word, is_show_results=True):
@@ -165,18 +49,18 @@ class Foogle:
         entries_by_file = self.folder_index[word]
 
         if is_show_results:
-            self.show_results(entries_by_file, word)
+            self.show_results(entries_by_file)
 
         return entries_by_file
 
-    def show_results(self, entries_by_file, word):
-        for filepath, entries in entries_by_file.items():
+    def show_results(self, search_result: SearchResult):
+        for filepath, entries in search_result.entries.items():
             print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
             for entry in entries:
-                print(self.make_snippet(filepath, entry, len(word)))
+                print(self.make_snippet(filepath, entry))
             print()
 
-    def make_snippet(self, filepath, entry: WordEntry, word_len, radius=40):
+    def make_snippet(self, filepath, entry: WordEntry, radius=40):
         with open(filepath, encoding='utf8') as f:
             text = f.read()
 
@@ -187,7 +71,7 @@ class Foogle:
             left_border = 0
 
         right_ellipsis = True
-        right_border = entry.offset + word_len + radius
+        right_border = entry.offset + entry.length + radius
         if right_border >= len(text):
             right_ellipsis = False
             right_border = len(text)
@@ -200,7 +84,7 @@ class Foogle:
                 break
 
         # ищем конец этой строки
-        for i in range(entry.offset + word_len, right_border):
+        for i in range(entry.offset + entry.length, right_border):
             if text[i] == '\n':
                 right_border = i
                 right_ellipsis = False
@@ -215,10 +99,10 @@ class Foogle:
         # snippet += colorama.Fore.WHITE
         # snippet += colorama.Back.LIGHTGREEN_EX
         snippet += colorama.Fore.GREEN
-        snippet += text[entry.offset:entry.offset + word_len]
+        snippet += text[entry.offset:entry.offset + entry.length]
         # snippet += colorama.Back.RESET
         snippet += colorama.Fore.RESET
-        snippet += text[entry.offset + word_len:right_border]
+        snippet += text[entry.offset + entry.length:right_border]
         if right_ellipsis: snippet += '...'
 
         return snippet
@@ -226,8 +110,13 @@ class Foogle:
 
 def main():
     foogle = Foogle('tests/files/wiki_test')
-    # foogle.search_expression('частотность AND но')
-    foogle.search_word('частотность')
+    # foogle.search_expression('частотность OR шифр')
+    # foogle.search_expression('((шифр) OR (частотность))')
+    # foogle.search_expression('((шифр) OR (частотность)) AND Википедия')
+    foogle.search_expression('(шифр OR частотность) AND она OR может')
+    # foogle.search_expression('частотность AND слова OR шифр')
+    # foogle.search_expression('шифр')
+    # foogle.search_word('частотность')
 
 
 if __name__ == '__main__':
