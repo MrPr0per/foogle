@@ -9,14 +9,6 @@ class Atom:
         return f'{self.value}'
 
 
-class NotAtom(Atom):
-    def __init__(self, atom: Atom):
-        super().__init__(atom)
-
-    def __repr__(self):
-        return f'NOT {self.value}'
-
-
 class WordAtom(Atom):
     def __init__(self, word: str):
         super().__init__(word)
@@ -26,31 +18,45 @@ class WordAtom(Atom):
 
 
 class TreeAtom(Atom):
-    def __init__(self, tree: 'Tree'):
+    def __init__(self, tree: 'OrTree'):
         super().__init__(tree)
 
     def __repr__(self):
         return f'({self.value})'
 
 
-class AndTree:
+class ExclusionTree:
+    EXCLUSION_SYMBOL = '\\'
+
     def __init__(self, atoms: list[Atom]):
         self.atoms = atoms
 
     def __repr__(self):
+        return f' {self.EXCLUSION_SYMBOL} '.join([f'{a}' for a in self.atoms])
+
+
+class AndTree:
+    AND_SYMBOL = 'AND'
+
+    def __init__(self, exclusion_trees: list[ExclusionTree]):
+        self.exclusion_trees = exclusion_trees
+
+    def __repr__(self):
         # if len(self.atoms) == 1: return str(self.atoms[0])
         # return ' AND '.join([f'({a})' for a in self.atoms])
-        return ' AND '.join([f'{a}' for a in self.atoms])
+        return f' {self.AND_SYMBOL} '.join([f'{a}' for a in self.exclusion_trees])
 
 
-class Tree:
-    def __init__(self, and_trees: list[AndTree]):
+class OrTree:
+    OR_SYMBOL = 'OR'
+
+    def __init__(self, and_trees: list['AndTree']):
         self.and_trees = and_trees
 
     def __repr__(self):
         # if len(self.and_trees) == 1: return str(self.and_trees[0])
         # return ' OR '.join([f'({a})' for a in self.and_trees])
-        return ' OR '.join([f'{a}' for a in self.and_trees])
+        return f' {self.OR_SYMBOL} '.join([f'{a}' for a in self.and_trees])
 
 
 class LogicTreeParser:
@@ -63,25 +69,24 @@ class LogicTreeParser:
         return self.parse_only_one_tree()
 
     def parse_only_one_tree(self):
-        tree = self.parse_tree()
+        tree = self.parse_or_tree()
         if self.cursor != len(self.tokens):
             raise ValueError('в запросе несколько выражений, а не одно')
         return tree
 
-    def parse_tree(self) -> Tree:
+    def parse_or_tree(self) -> OrTree:
         # грамматика:
-        # tree := or_tree 
+        # or_tree        := and_tree       ('OR'  and_tree      )*
+        # and_tree       := exclusion_tree ('AND' exclusion_tree)*
+        # exclusion_tree := atom           ('\'   exlusion_tree )*
+        # atom := word | '(' tree ')'
 
-        # or_tree := and_tree ('OR' and_tree)*
-        # and_tree := atom ('AND' atom)*
-        # atom := word | '(' tree ')' | 'NOT' atom
-
-        # привечание: дерево не может быть пустым
+        # примечание: дерево не может быть пустым
 
         and_trees = [self.parse_and_tree()]
         while True:
             token = self.current_token()
-            if isinstance(token, tokenization.Operator) and token.value == 'OR':
+            if isinstance(token, tokenization.Operator) and token.value == OrTree.OR_SYMBOL:
                 self.cursor += 1
                 and_trees.append(self.parse_and_tree())
             else:
@@ -91,13 +96,36 @@ class LogicTreeParser:
             # else:
             #     raise ValueError(
             #         f'в {self.tokens} {self.cursor}-й токен должен быть OR или конец строки, а не {token}')
-        return Tree(and_trees)
+        return OrTree(and_trees)
 
     def parse_and_tree(self) -> AndTree:
+        exclusion_trees = [self.parse_exclusion_tree()]
+        while True:
+            token = self.current_token()
+            if isinstance(token, tokenization.Operator) and token.value == ExclusionTree.EXCLUSION_SYMBOL:
+                self.cursor += 1
+                exclusion_trees.append(self.parse_and_tree())
+            else:
+                break
+
+        # atoms = [self.parse_atom()]
+        # while True:
+        #     token = self.current_token()
+        #     if isinstance(token, tokenization.Operator) and token.value == AndTree.AND_SYMBOL:
+        #         self.cursor += 1
+        #         atoms.append(self.parse_atom())
+        #     else:
+        #         break
+        #     # else:
+        #     #     raise ValueError(
+        #     #         f'в {self.tokens} {self.cursor}-й токен должен быть AND или конец строки, а не {token}')
+        return AndTree(exclusion_trees)
+
+    def parse_exclusion_tree(self) -> ExclusionTree:
         atoms = [self.parse_atom()]
         while True:
             token = self.current_token()
-            if isinstance(token, tokenization.Operator) and token.value == 'AND':
+            if isinstance(token, tokenization.Operator) and token.value == ExclusionTree.EXCLUSION_SYMBOL:
                 self.cursor += 1
                 atoms.append(self.parse_atom())
             else:
@@ -105,7 +133,7 @@ class LogicTreeParser:
             # else:
             #     raise ValueError(
             #         f'в {self.tokens} {self.cursor}-й токен должен быть AND или конец строки, а не {token}')
-        return AndTree(atoms)
+        return ExclusionTree(atoms)
 
     def parse_atom(self) -> Atom:
         token = self.current_token()
@@ -118,7 +146,7 @@ class LogicTreeParser:
         if isinstance(token, tokenization.LeftParenthesis):
             token: tokenization.LeftParenthesis
             self.cursor += 1
-            tree = self.parse_tree()
+            tree = self.parse_or_tree()
 
             end_token = self.current_token()
             if isinstance(end_token, tokenization.RightParenthesis):
@@ -126,9 +154,9 @@ class LogicTreeParser:
                 return TreeAtom(tree)
             else:
                 raise ValueError(f'в {self.tokens} {self.cursor}-й токен должен быть ), а не {token}')
-        if isinstance(token, tokenization.Operator) and token.value == 'NOT':
-            self.cursor += 1
-            return NotAtom(self.parse_atom())
+        # if isinstance(token, tokenization.Operator) and token.value == 'NOT':
+        #     self.cursor += 1
+        #     return NotAtom(self.parse_atom())
         raise AssertionError()
 
     def current_token(self):

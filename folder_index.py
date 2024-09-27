@@ -59,6 +59,16 @@ class SearchResult:
             union[common_filename] = common_word_entries
         return SearchResult(union)
 
+    @classmethod
+    def exclude(cls, result: 'SearchResult', exclusions: list['SearchResult']) -> 'SearchResult':
+        # получаем set фалов, которые нужно исключить из result
+        excluded_filenames_list = [set(exluded_result.entries.keys()) for exluded_result in exclusions]
+        excluded_filenames = excluded_filenames_list[0].union(*excluded_filenames_list)
+
+        # исключаем лишние файлы
+        result = {filename: entries for (filename, entries) in result.entries.items() if filename not in excluded_filenames}
+        return SearchResult(result)
+
     def __getitem__(self, filename):
         return self.entries[filename]
 

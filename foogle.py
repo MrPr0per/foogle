@@ -12,21 +12,26 @@ class ExpressionSearcher:
     def __init__(self, folder_index: FolderIndex):
         self.folder_index = folder_index
 
-    def search_by_or_tree(self, or_tree: logic_tree.Tree):
+    def search_by_or_tree(self, or_tree: logic_tree.OrTree):
         results_list = [self.search_by_and_tree(and_tree) for and_tree in or_tree.and_trees]
         results = SearchResult.unite(results_list)
         return results
 
     def search_by_and_tree(self, and_tree: logic_tree.AndTree) -> SearchResult:
-        results_list = [self.search_by_atom(atom) for atom in and_tree.atoms]
+        results_list = [self.search_by_exclusion_tree(exclusion_tree) for exclusion_tree in and_tree.exclusion_trees]
         results = SearchResult.intersect(results_list)
+        return results
+
+    def search_by_exclusion_tree(self, exclusion_tree: logic_tree.ExclusionTree) -> SearchResult:
+        results_list = [self.search_by_atom(atom) for atom in exclusion_tree.atoms]
+        results = SearchResult.exclude(results_list[0], results_list[1:])
         return results
 
     def search_by_atom(self, atom: logic_tree.Atom):
         if isinstance(atom, logic_tree.WordAtom):
             return SearchResult(self.folder_index[atom.value])
-        if isinstance(atom, logic_tree.NotAtom):
-            raise NotImplemented()
+        # if isinstance(atom, logic_tree.NotAtom):
+        #     raise NotImplemented()
         if isinstance(atom, logic_tree.TreeAtom):
             atom: logic_tree.TreeAtom
             return self.search_by_or_tree(atom.value)
@@ -113,7 +118,8 @@ def main():
     # foogle.search_expression('частотность OR шифр')
     # foogle.search_expression('((шифр) OR (частотность))')
     # foogle.search_expression('((шифр) OR (частотность)) AND Википедия')
-    foogle.search_expression('(шифр OR частотность) AND она OR может')
+    # foogle.search_expression('(шифр OR частотность) AND она OR может')
+    foogle.search_expression('частотность \\ Ципфа \\ слова')
     # foogle.search_expression('частотность AND слова OR шифр')
     # foogle.search_expression('шифр')
     # foogle.search_word('частотность')

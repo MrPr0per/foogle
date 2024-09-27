@@ -7,7 +7,7 @@ class Token:
 
 
 class Operator(Token):
-    OPERATORS = ['OR', 'AND', 'NOT']
+    OPERATORS = ['OR', 'AND', '\\']
 
     def __init__(self, value):
         super().__init__()
