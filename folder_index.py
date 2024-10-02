@@ -1,4 +1,5 @@
 import os
+import pickle
 import re
 import typing
 
@@ -119,7 +120,7 @@ class FolderIndexer:
         if filepath not in folder_index.encodings:
             folder_index.encodings[filepath] = self.get_encoding(filepath)
         encoding = folder_index.encodings[filepath]
-        
+
         with open(filepath, 'r', encoding=encoding) as f:
             total_char_count = 0
             for i, line in enumerate(f.readlines()):
@@ -149,3 +150,16 @@ class FolderIndexer:
                     break
             detector.close()
         return detector.result['encoding']
+
+
+class FolderIndexSaveloader:
+    @classmethod
+    def save(cls, filepath: str, folder_index: FolderIndex):
+        with open(filepath, 'wb') as f:
+            pickle.dump(folder_index, f)
+
+    @classmethod
+    def load(cls, filepath: str) -> FolderIndex:
+        with open(filepath, 'rb') as f:
+            index = pickle.load(f)
+        return index

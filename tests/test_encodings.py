@@ -11,8 +11,9 @@ class TestFolderIndexer(TestCase):
         self.assertEqual(indexer.get_encoding('files/encoding_test/utf8.txt'), 'utf-8')
         self.assertEqual(indexer.get_encoding('files/encoding_test/utf16LE.txt'), 'UTF-16')
 
-    def test_foogle(self):
-        foogle = Foogle('files/encoding_test')
+    def test_foogle(self, foogle=None):
+        if foogle is None:
+            foogle = Foogle('files/encoding_test')
         result = foogle.search_expression('текст')
         self.assertEqual(len(result.entries), 4)
         filename_and_ofset = []

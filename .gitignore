@@ -1,6 +1,7 @@
 tests/test.py
 tests/test.txt
 tests/files/wiki_test/
+tests/files/_indexes/saveload_test.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -39,8 +39,18 @@ class ExpressionSearcher:
 
 
 class Foogle:
-    def __init__(self, folderpath):
-        folder_index = FolderIndexer().index_folder(folderpath)
+    def __init__(self, folderpath: str = None, index: FolderIndex = None):
+        none_args_count = (folderpath, index).count(None)
+        if none_args_count != 1:
+            raise Exception(f'Ровно один агрумент должен быть не None, а не {none_args_count}: {(folderpath, index)}')
+
+        if folderpath is not None:
+            folder_index = FolderIndexer().index_folder(folderpath)
+        elif index is not None:
+            folder_index = index
+        else:
+            raise AssertionError()
+
         self.folder_index = folder_index
 
     def search_expression(self, querry):
