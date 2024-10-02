@@ -49,15 +49,6 @@ class Foogle:
         self.show_results(result)
         return result
 
-    def search_word(self, word, is_show_results=True):
-        word = word.casefold()
-        entries_by_file = self.folder_index[word]
-
-        if is_show_results:
-            self.show_results(entries_by_file)
-
-        return entries_by_file
-
     def show_results(self, search_result: SearchResult):
         for filepath, entries in search_result.entries.items():
             print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
@@ -66,7 +57,7 @@ class Foogle:
             print()
 
     def make_snippet(self, filepath, entry: WordEntry, radius=40):
-        with open(filepath, encoding='utf8') as f:
+        with open(filepath, encoding=self.folder_index.encodings[filepath]) as f:
             text = f.read()
 
         left_ellipsis = True
@@ -119,7 +110,7 @@ def main():
     # foogle.search_expression('((шифр) OR (частотность))')
     # foogle.search_expression('((шифр) OR (частотность)) AND Википедия')
     # foogle.search_expression('(шифр OR частотность) AND она OR может')
-    foogle.search_expression('частотность \\ Ципфа \\ слова')
+    foogle.search_expression(r'частотность \ Ципфа \ слова')
     # foogle.search_expression('частотность AND слова OR шифр')
     # foogle.search_expression('шифр')
     # foogle.search_word('частотность')

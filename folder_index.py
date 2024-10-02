@@ -2,6 +2,8 @@ import os
 import re
 import typing
 
+import chardet
+
 
 class WordEntry:
     """одно вхождение одного слова в один файл"""
@@ -61,12 +63,14 @@ class SearchResult:
 
     @classmethod
     def exclude(cls, result: 'SearchResult', exclusions: list['SearchResult']) -> 'SearchResult':
+        if len(exclusions) == 0:
+            return result
         # получаем set фалов, которые нужно исключить из result
         excluded_filenames_list = [set(exluded_result.entries.keys()) for exluded_result in exclusions]
         excluded_filenames = excluded_filenames_list[0].union(*excluded_filenames_list)
 
         # исключаем лишние файлы
-        result = {filename: entries for (filename, entries) in result.entries.items() if filename not in excluded_filenames}
+        result = {fname: entries for (fname, entries) in result.entries.items() if fname not in excluded_filenames}
         return SearchResult(result)
 
     def __getitem__(self, filename):
@@ -77,10 +81,15 @@ class SearchResult:
 
 
 class FolderIndex:
-    """хранит {слово: {файл: [вхождения]}}"""
 
     def __init__(self):
+        """
+        хранит 
+        - word_entires: {слово: {файл: [вхождения]}}
+        - encodings:    {файл: кодировка}
+        """
         self.word_entires: dict[str, dict[str, list[WordEntry]]] = {}
+        self.encodings = {}
 
     def add(self, word, filepath, entry: WordEntry):
         if word not in self.word_entires:
@@ -106,8 +115,11 @@ class FolderIndexer:
         return folder_index
 
     def index_file(self, folder_index: FolderIndex, filepath: str):
-        # todo: определять и сохранять кодировку
-        encoding = 'utf8'
+        # todo может выделить это в отдельный класс
+        if filepath not in folder_index.encodings:
+            folder_index.encodings[filepath] = self.get_encoding(filepath)
+        encoding = folder_index.encodings[filepath]
+        
         with open(filepath, 'r', encoding=encoding) as f:
             total_char_count = 0
             for i, line in enumerate(f.readlines()):
@@ -127,3 +139,13 @@ class FolderIndexer:
             else:
                 for filepath in self.iter_filepaths(item_path):
                     yield filepath
+
+    def get_encoding(self, filepath: str) -> str:
+        detector = chardet.UniversalDetector()
+        with open(filepath, 'rb') as fh:
+            for line in fh:
+                detector.feed(line)
+                if detector.done:
+                    break
+            detector.close()
+        return detector.result['encoding']
