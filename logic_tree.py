@@ -1,3 +1,4 @@
+import settings
 import tokenization
 
 
@@ -26,34 +27,27 @@ class TreeAtom(Atom):
 
 
 class ExclusionTree:
-    EXCLUSION_SYMBOL = '\\'
-
     def __init__(self, atoms: list[Atom]):
         self.atoms = atoms
 
     def __repr__(self):
-        return f' {self.EXCLUSION_SYMBOL} '.join([f'{a}' for a in self.atoms])
+        return f' {settings.EXCLUSION_TERM} '.join([f'{a}' for a in self.atoms])
 
 
 class AndTree:
-    # TODO: вынести это в настройки
-    AND_SYMBOL = 'and'
-
     def __init__(self, exclusion_trees: list[ExclusionTree]):
         self.exclusion_trees = exclusion_trees
 
     def __repr__(self):
-        return f' {self.AND_SYMBOL} '.join([f'{a}' for a in self.exclusion_trees])
+        return f' {settings.AND_TERM} '.join([f'{a}' for a in self.exclusion_trees])
 
 
 class OrTree:
-    OR_SYMBOL = 'or'
-
     def __init__(self, and_trees: list['AndTree']):
         self.and_trees = and_trees
 
     def __repr__(self):
-        return f' {self.OR_SYMBOL} '.join([f'{a}' for a in self.and_trees])
+        return f' {settings.OR_TERM} '.join([f'{a}' for a in self.and_trees])
 
 
 class LogicTreeParser:
@@ -73,9 +67,9 @@ class LogicTreeParser:
 
     def parse_or_tree(self) -> OrTree:
         # грамматика:
-        # or_tree        := and_tree       ('OR'  and_tree      )*
-        # and_tree       := exclusion_tree ('AND' exclusion_tree)*
-        # exclusion_tree := atom           ('\'   exlusion_tree )*
+        # or_tree        := and_tree       (OR_TERM     and_tree      )*
+        # and_tree       := exclusion_tree (AND_TERM    exclusion_tree)*
+        # exclusion_tree := atom           (EXLUDE_TERM exlusion_tree )*
         # atom := word | '(' tree ')'
 
         # примечание: дерево не может быть пустым
@@ -83,7 +77,7 @@ class LogicTreeParser:
         and_trees = [self.parse_and_tree()]
         while True:
             token = self.current_token()
-            if isinstance(token, tokenization.Operator) and token.value == OrTree.OR_SYMBOL:
+            if isinstance(token, tokenization.Operator) and token.value == settings.OR_TERM:
                 self.cursor += 1
                 and_trees.append(self.parse_and_tree())
             else:
@@ -94,9 +88,9 @@ class LogicTreeParser:
         exclusion_trees = [self.parse_exclusion_tree()]
         while True:
             token = self.current_token()
-            if isinstance(token, tokenization.Operator) and token.value == ExclusionTree.EXCLUSION_SYMBOL:
+            if isinstance(token, tokenization.Operator) and token.value == settings.AND_TERM:
                 self.cursor += 1
-                exclusion_trees.append(self.parse_and_tree())
+                exclusion_trees.append(self.parse_exclusion_tree())
             else:
                 break
 
@@ -106,7 +100,7 @@ class LogicTreeParser:
         atoms = [self.parse_atom()]
         while True:
             token = self.current_token()
-            if isinstance(token, tokenization.Operator) and token.value == ExclusionTree.EXCLUSION_SYMBOL:
+            if isinstance(token, tokenization.Operator) and token.value == settings.EXCLUSION_TERM:
                 self.cursor += 1
                 atoms.append(self.parse_atom())
             else:

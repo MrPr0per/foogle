@@ -1,5 +1,7 @@
 import re
 
+import settings
+
 
 class Token:
     def __init__(self):
@@ -7,8 +9,6 @@ class Token:
 
 
 class Operator(Token):
-    # TODO: вынести в настройки
-    OPERATORS = ['or', 'and', '\\']
 
     def __init__(self, value):
         super().__init__()
@@ -84,7 +84,7 @@ class Tokenizator:
         return False
 
     def try_read_operator(self):
-        for op in Operator.OPERATORS:
+        for op in settings.LOGIC_TERMS:
             if self.cursor + len(op) > len(self.query): continue
             op_in_query = self.query[self.cursor:self.cursor + len(op)]
             if op == op_in_query and (
@@ -95,7 +95,7 @@ class Tokenizator:
         return False
 
     def try_read_word(self):
-        match = re.search(r'\w+', self.query[self.cursor:])
+        match = re.search(settings.WORD_REGEX, self.query[self.cursor:])
         if match is None:
             return False
         if match.span()[0] > 0: return False

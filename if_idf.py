@@ -1,6 +1,8 @@
 import math
 import re
 
+import settings
+
 
 class TfIdfIndex:
     def __init__(self):
@@ -51,6 +53,10 @@ class TfIdfIndex:
         return score
 
     def get_tf_idf_by_word(self, word: str, filepath: str) -> float:
+        if word not in self.filepaths_by_word:
+            # слова нет в нашем индексе
+            return 0
+
         if filepath in self.word_count_in_file and word in self.word_count_in_file[filepath]:
             tf = self.word_count_in_file[filepath][word]
         else:
@@ -61,6 +67,6 @@ class TfIdfIndex:
         return score
 
     def get_words_list(self, querry: str):
-        words = re.findall(r'\S+', querry)
-        words = [w for w in words if w not in ('AND', 'OR', '\\')]  # TODO TODO: ВЫНЕСТИ СПИСОК СПЕЦ ТЕРМОВ ОТДЕЛЬНО
+        words = re.findall(settings.WORD_REGEX, querry)
+        words = [w for w in words if w not in settings.LOGIC_TERMS]
         return words

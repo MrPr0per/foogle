@@ -30,8 +30,6 @@ class ExpressionSearcher:
     def search_by_atom(self, atom: logic_tree.Atom):
         if isinstance(atom, logic_tree.WordAtom):
             return SearchResult(self.folder_index[atom.value])
-        # if isinstance(atom, logic_tree.NotAtom):
-        #     raise NotImplemented()
         if isinstance(atom, logic_tree.TreeAtom):
             atom: logic_tree.TreeAtom
             return self.search_by_or_tree(atom.value)
@@ -54,7 +52,7 @@ class Foogle:
         self.folder_index = folder_index
 
     def search_expression(self, querry):
-        # TODO: может не стоит этого делать
+        # TODO: может не стоит делать casefold тут (чтобы не кейсфолдить операторы)
         querry = querry.casefold()
         expr = logic_tree.LogicTreeParser(querry).parse()
         result = ExpressionSearcher(self.folder_index).search_by_or_tree(expr)
@@ -137,7 +135,8 @@ def main():
     # foogle.search_expression('((шифр) OR (частотность)) AND Википедия')
     # foogle.search_expression('(шифр OR частотность) AND она OR может')
     # foogle.search_expression(r'частотность \ Ципфа \ слова')
-    foogle.search_expression(r'частотность or и')
+    # foogle.search_expression(r'частотность or и')
+    foogle.search_expression(r'к \ помощи \ вопросу & тому | с & декабря \ 2012 & 2015 & точки')
     # foogle.search_expression('частотность AND слова OR шифр')
     # foogle.search_expression('шифр')
     # foogle.search_word('частотность')

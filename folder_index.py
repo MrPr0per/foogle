@@ -5,6 +5,7 @@ import typing
 
 import chardet
 
+import settings
 from if_idf import TfIdfIndex
 
 
@@ -26,7 +27,6 @@ class SearchResult:
 
     @classmethod
     def intersect(cls, entries_list: list['SearchResult']) -> 'SearchResult':
-        # if len(entries_list) == 0: return WordEntries()
         if len(entries_list) == 0: raise ValueError('перресечение пустого набора результатов')
 
         all_filenames = [set(entries.entries.keys()) for entries in entries_list]
@@ -131,8 +131,7 @@ class FolderIndexer:
             total_char_count = 0
             for i, line in enumerate(f.readlines()):
                 line = line.casefold()
-                # TODO: ВЫДЕЛИТЬ ЭТО ВЫРАЖЕНИЕ ОТДЕЛЬНО (и заменить его на \S+)
-                for match in re.finditer(r'\w+', line):
+                for match in re.finditer(settings.WORD_REGEX, line):
                     word = match.group()
                     folder_index.add(word, filepath,
                                      WordEntry(match.span()[0] + total_char_count, i + 1,
