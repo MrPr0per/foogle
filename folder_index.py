@@ -5,6 +5,8 @@ import typing
 
 import chardet
 
+from if_idf import TfIdfIndex
+
 
 class WordEntry:
     """одно вхождение одного слова в один файл"""
@@ -88,9 +90,11 @@ class FolderIndex:
         хранит 
         - word_entires: {слово: {файл: [вхождения]}}
         - encodings:    {файл: кодировка}
+        - tf_idf_index: TfIdfIndex
         """
         self.word_entires: dict[str, dict[str, list[WordEntry]]] = {}
         self.encodings = {}
+        self.tf_idf_index = TfIdfIndex()
 
     def add(self, word, filepath, entry: WordEntry):
         if word not in self.word_entires:
@@ -117,18 +121,24 @@ class FolderIndexer:
 
     def index_file(self, folder_index: FolderIndex, filepath: str):
         # todo может выделить это в отдельный класс
+        # индексация кодировки
         if filepath not in folder_index.encodings:
             folder_index.encodings[filepath] = self.get_encoding(filepath)
         encoding = folder_index.encodings[filepath]
 
+        # индексация вхождений и tf_idf
         with open(filepath, 'r', encoding=encoding) as f:
             total_char_count = 0
             for i, line in enumerate(f.readlines()):
                 line = line.casefold()
+                # TODO: ВЫДЕЛИТЬ ЭТО ВЫРАЖЕНИЕ ОТДЕЛЬНО (и заменить его на \S+)
                 for match in re.finditer(r'\w+', line):
-                    folder_index.add(match.group(), filepath,
+                    word = match.group()
+                    folder_index.add(word, filepath,
                                      WordEntry(match.span()[0] + total_char_count, i + 1,
                                                match.span()[1] - match.span()[0]))
+                    # может и это выделить отдельно
+                    folder_index.tf_idf_index.add(word, filepath)
                 total_char_count += len(line)
 
     def iter_filepaths(self, folderpath) -> typing.Generator[str, None, None]:

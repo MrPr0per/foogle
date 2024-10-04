@@ -36,26 +36,23 @@ class ExclusionTree:
 
 
 class AndTree:
-    AND_SYMBOL = 'AND'
+    # TODO: вынести это в настройки
+    AND_SYMBOL = 'and'
 
     def __init__(self, exclusion_trees: list[ExclusionTree]):
         self.exclusion_trees = exclusion_trees
 
     def __repr__(self):
-        # if len(self.atoms) == 1: return str(self.atoms[0])
-        # return ' AND '.join([f'({a})' for a in self.atoms])
         return f' {self.AND_SYMBOL} '.join([f'{a}' for a in self.exclusion_trees])
 
 
 class OrTree:
-    OR_SYMBOL = 'OR'
+    OR_SYMBOL = 'or'
 
     def __init__(self, and_trees: list['AndTree']):
         self.and_trees = and_trees
 
     def __repr__(self):
-        # if len(self.and_trees) == 1: return str(self.and_trees[0])
-        # return ' OR '.join([f'({a})' for a in self.and_trees])
         return f' {self.OR_SYMBOL} '.join([f'{a}' for a in self.and_trees])
 
 
@@ -91,11 +88,6 @@ class LogicTreeParser:
                 and_trees.append(self.parse_and_tree())
             else:
                 break
-            # elif self.current_token() is None:
-            #     break
-            # else:
-            #     raise ValueError(
-            #         f'в {self.tokens} {self.cursor}-й токен должен быть OR или конец строки, а не {token}')
         return OrTree(and_trees)
 
     def parse_and_tree(self) -> AndTree:
@@ -108,17 +100,6 @@ class LogicTreeParser:
             else:
                 break
 
-        # atoms = [self.parse_atom()]
-        # while True:
-        #     token = self.current_token()
-        #     if isinstance(token, tokenization.Operator) and token.value == AndTree.AND_SYMBOL:
-        #         self.cursor += 1
-        #         atoms.append(self.parse_atom())
-        #     else:
-        #         break
-        #     # else:
-        #     #     raise ValueError(
-        #     #         f'в {self.tokens} {self.cursor}-й токен должен быть AND или конец строки, а не {token}')
         return AndTree(exclusion_trees)
 
     def parse_exclusion_tree(self) -> ExclusionTree:
@@ -130,9 +111,6 @@ class LogicTreeParser:
                 atoms.append(self.parse_atom())
             else:
                 break
-            # else:
-            #     raise ValueError(
-            #         f'в {self.tokens} {self.cursor}-й токен должен быть AND или конец строки, а не {token}')
         return ExclusionTree(atoms)
 
     def parse_atom(self) -> Atom:
@@ -154,9 +132,6 @@ class LogicTreeParser:
                 return TreeAtom(tree)
             else:
                 raise ValueError(f'в {self.tokens} {self.cursor}-й токен должен быть ), а не {token}')
-        # if isinstance(token, tokenization.Operator) and token.value == 'NOT':
-        #     self.cursor += 1
-        #     return NotAtom(self.parse_atom())
         raise AssertionError()
 
     def current_token(self):

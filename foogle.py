@@ -12,7 +12,7 @@ class ExpressionSearcher:
     def __init__(self, folder_index: FolderIndex):
         self.folder_index = folder_index
 
-    def search_by_or_tree(self, or_tree: logic_tree.OrTree):
+    def search_by_or_tree(self, or_tree: logic_tree.OrTree) -> SearchResult:
         results_list = [self.search_by_and_tree(and_tree) for and_tree in or_tree.and_trees]
         results = SearchResult.unite(results_list)
         return results
@@ -54,17 +54,33 @@ class Foogle:
         self.folder_index = folder_index
 
     def search_expression(self, querry):
+        # TODO: может не стоит этого делать
+        querry = querry.casefold()
         expr = logic_tree.LogicTreeParser(querry).parse()
         result = ExpressionSearcher(self.folder_index).search_by_or_tree(expr)
-        self.show_results(result)
+        filepaths_with_score = self.folder_index.tf_idf_index.get_odered_filepaths_with_tf_idf(querry, result)
+        self.show_results(result, filepaths_with_score)
         return result
 
-    def show_results(self, search_result: SearchResult):
-        for filepath, entries in search_result.entries.items():
-            print(re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath))
+    def show_results(self, search_result: SearchResult, filepaths_with_score):
+        for filepath, score in filepaths_with_score:
+            print(self.format_filepath(filepath, score))
+            entries = search_result[filepath]
             for entry in entries:
                 print(self.make_snippet(filepath, entry))
             print()
+
+    def format_filepath(self, filepath, tf_idf):
+        # подсвечиваем имя файла
+        result = re.sub(r'([^/]+?)\.txt', rf'{colorama.Fore.CYAN}\1{colorama.Fore.RESET}.txt', filepath)
+
+        # добавляем тф идф
+        result += colorama.Style.BRIGHT
+        result += colorama.Fore.LIGHTBLACK_EX
+        result += f'  (TF-IDF: {round(tf_idf, 3)})'
+        result += colorama.Fore.RESET
+        result += colorama.Style.RESET_ALL
+        return result
 
     def make_snippet(self, filepath, entry: WordEntry, radius=40):
         with open(filepath, encoding=self.folder_index.encodings[filepath]) as f:
@@ -120,7 +136,8 @@ def main():
     # foogle.search_expression('((шифр) OR (частотность))')
     # foogle.search_expression('((шифр) OR (частотность)) AND Википедия')
     # foogle.search_expression('(шифр OR частотность) AND она OR может')
-    foogle.search_expression(r'частотность \ Ципфа \ слова')
+    # foogle.search_expression(r'частотность \ Ципфа \ слова')
+    foogle.search_expression(r'частотность or и')
     # foogle.search_expression('частотность AND слова OR шифр')
     # foogle.search_expression('шифр')
     # foogle.search_word('частотность')

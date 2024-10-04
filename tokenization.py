@@ -7,7 +7,8 @@ class Token:
 
 
 class Operator(Token):
-    OPERATORS = ['OR', 'AND', '\\']
+    # TODO: вынести в настройки
+    OPERATORS = ['or', 'and', '\\']
 
     def __init__(self, value):
         super().__init__()
