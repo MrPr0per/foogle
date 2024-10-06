@@ -1,3 +1,4 @@
+import random
 import re
 import urllib
 
@@ -13,11 +14,11 @@ def save_text(text, url):
         f.write(text)
 
 
-def download_tree(url):
+def download_tree(url, count=100):
     history = set()
     queue = [url]
 
-    while len(history) < 200 and len(queue) >= 1:
+    while len(history) < count and len(queue) >= 1:
         current_url = queue[0]
         queue = queue[1:]
 
@@ -36,13 +37,36 @@ def download_tree(url):
         next_urls = [urllib.parse.unquote(u) for u in next_urls]
         next_urls = [u for u in next_urls if u not in history and ':' not in u]
         next_urls = ['https://ru.wikipedia.org' + u for u in next_urls]
-        
+
         queue.extend(next_urls)
 
 
+def download_random(current_url, count=100):
+    history = set()
+
+    while len(history) < count:
+        print(f'{len(history):>4}: {current_url}')
+
+        r = requests.get(current_url)
+        html = r.text
+        soup = BeautifulSoup(html, 'html.parser')
+        text = soup.get_text()
+
+        save_text(text, current_url)
+
+        history.add(current_url)
+
+        next_urls = re.findall(r'href="(/wiki/.*?)"', html)
+        next_urls = [urllib.parse.unquote(u) for u in next_urls]
+        next_urls = [u for u in next_urls if u not in history and ':' not in u]
+        next_urls = ['https://ru.wikipedia.org' + u for u in next_urls]
+
+        current_url = random.choice(next_urls)
+        
+
 def main():
     url = 'https://ru.wikipedia.org/wiki/TF-IDF'
-    download_tree(url)
+    download_random(url)
 
 
 if __name__ == '__main__':
